@@ -32,6 +32,16 @@ function MoveTrush([string] $FilePath) {
     $shell.Namespace($dpath).ParseName($fpath).InvokeVerb("delete")
 }
 
+function MoveFileWithUniqName([string] $SrcName, [string] $DstName) {
+    $sUniq = $DstName
+    $lUniq = 1
+    while( (Test-Path -LiteralPath $sUniq) ) {
+        $sUniq = "$DstName ($lUniq)"
+        $lUniq++
+    }
+    $null = Move-Item -LiteralPath $SrcName -Destination $sUniq -Force
+}
+
 ###############################################################################
 
 function CleanupFName([System.IO.FileInfo] $Target) {
