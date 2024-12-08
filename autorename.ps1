@@ -4,8 +4,6 @@ Add-Type -AssemblyName "Microsoft.VisualBasic"
 # 各種変数初期化
 $ErrorActionPreference = "Stop"
 $ScriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path
-# $WSH = New-Object -ComObject WScript.Shell
-# $FSO = New-Object -ComObject Scripting.FileSystemObject
 
 ###############################################################################
 ## Common
@@ -25,6 +23,19 @@ function VBRep([string] $text,[string] $from,[string] $to) {
     return $ret
 }
 
+# 括弧削除
+Function RemoveAllBrackets([string] $sText){
+    $buff = $fname
+    do {
+        $buff = [regex]::Replace($buff, "\([^\(]*?\)","")
+    } until (
+        $buff -eq [regex]::Replace($buff, "\([^\(]*?\)","")
+    )
+    $buff = [regex]::Replace($buff, ".*\)", "")
+    $buff = [regex]::Replace($buff, "\(.*", "")
+    return $buff
+}
+
 function MoveTrush([string] $FilePath) {
     $dpath = Split-Path $FilePath -Parent
     $fpath = Split-Path $FilePath -Leaf
@@ -32,11 +43,20 @@ function MoveTrush([string] $FilePath) {
     $shell.Namespace($dpath).ParseName($fpath).InvokeVerb("delete")
 }
 
-function MoveFileWithUniqName([string] $SrcName, [string] $DstName) {
+function MoveItemWithUniqName([string] $SrcName, [string] $DstName, [bool] $isDir) {
     $sUniq = $DstName
     $lUniq = 1
     while( (Test-Path -LiteralPath $sUniq) ) {
-        $sUniq = "$DstName ($lUniq)"
+        if ($isDir -eq $false) {
+            $dname = [System.IO.Path]::GetDirectoryName($DstName)
+            $fname = [System.IO.Path]::GetFileNameWithoutExtension($DstName)
+            $ename = [System.IO.Path]::GetExtension($DstName)
+        }else{
+            $dname = [System.IO.Path]::GetDirectoryName($DstName)
+            $fname = [System.IO.Path]::GetFileName($DstName)
+            $ename = ""
+        }
+        $sUniq = [System.IO.Path]::Combine($dname, "$fname ($lUniq)" + $ename)
         $lUniq++
     }
     $null = Move-Item -LiteralPath $SrcName -Destination $sUniq -Force
@@ -71,54 +91,7 @@ function CleanupNodeName([string] $TargetName, [datetime] $TargetDate, [bool] $i
             $null = Write-Host "---"
             $null = Write-Host "src : $srcname"
             $null = Write-Host "dst : $dstname"
-            $exist = (Test-Path -LiteralPath $dstname)
-            if ($exist -eq $false) {
-                # 転送先に同名ファイルが無い場合
-                $null = Move-Item -LiteralPath $srcname -Destination $dstname -Force
-            }
-            # else{
-            #     # 転送先に同名ファイルが有る場合
-            #     $srcisdir = (Get-Item -LiteralPath $srcname).PSIsContainer
-            #     $dstisdir = (Get-Item -LiteralPath $srcname).PSIsContainer
-            #     # 転送アイテムが両方ファイル
-            #     if($srcisdir -eq $false -and $dstisdir -eq $false){
-            #         $srclen = (Get-Item -LiteralPath $srcname).Length
-            #         $dstlen = (Get-Item -LiteralPath $dstname).Length
-            #         if ($srclen -eq $dstlen) {
-            #             $null = MoveTrush $srcname
-            #             # 移動不要
-            #         }
-            #         if ($srclen -le $dstlen) {
-            #             $null = MoveTrush $srcname
-            #             # 移動不要
-            #         }
-            #         if ($srclen -gt $dstlen) {
-            #             $null = MoveTrush $dstname
-            #             $null = Move-Item -LiteralPath $srcname -Destination $dstname -Force
-            #         }
-            #     }
-            #     # 転送アイテムが両方フォルダ
-            #     if($srcisdir -eq $true -and $dstisdir -eq $true){
-            #         $tmpname = $dstname
-            #         $tmpnums = 1
-            #         $d = [System.IO.Path]::GetDirectoryName($dstname)
-            #         $f = [System.IO.Path]::GetFileNameWithoutExtension($dstname)
-            #         $e = [System.IO.Path]::GetExtension($dstname)
-            #         while (Test-Path -LiteralPath $tmpname) {
-            #             $tmpname = [System.IO.Path]::Combine($d, $f + "(" + $tmpnums + ")" + $e)
-            #             $tmpnums += 1
-            #         }
-            #         $null = Move-Item -LiteralPath $srcname -Destination $tmpname -Force
-            #         $null = Move-Item -LiteralPath $tmpname -Destination $dstname -Force
-            #     }
-            #     # 転送アイテムがファイル・フォルダで不一致の場合は無視
-            #     if($srcisdir -eq $true -and $dstisdir -eq $false){
-            #         # do nothing
-            #     }
-            #     if($srcisdir -eq $false -and $dstisdir -eq $true){
-            #         # do nothing
-            #     }
-            # }
+            $null = MoveItemWithUniqName $srcname $dstname $isDir
         }
     } catch {
         $null = Write-Host "Error:" $_.Exception.Message
@@ -138,17 +111,16 @@ function RestrictText([string] $FilePath, [bool] $isDir) {
         $ename = ""
     }
     # ファイル名
-    $fname = [regex]::replace($fname, "[Ａ-Ｚａ-ｚ０-９　（）［］｛｝＿]+",{ 
+    $fname = [regex]::Replace($fname, "[Ａ-Ｚａ-ｚ０-９　（）［］｛｝＿]+",{ 
         param($match)
         return [Microsoft.VisualBasic.Strings]::StrConv($match, [Microsoft.VisualBasic.VbStrConv]::Narrow)
     }, [system.text.regularexpressions.regexoptions]::IgnoreCase)
-    $fname = [regex]::replace($fname, "[ｦ-ﾟ]+",{ 
+    $fname = [regex]::Replace($fname, "[ｦ-ﾟ]+",{ 
         param($match)
         return [Microsoft.VisualBasic.Strings]::StrConv($match, [Microsoft.VisualBasic.VbStrConv]::Wide)
     }, [system.text.regularexpressions.regexoptions]::IgnoreCase)
     $fname = [Microsoft.VisualBasic.Strings]::StrConv($fname, [Microsoft.VisualBasic.VbStrConv]::Uppercase)
-    # 拡張子
-    # ファイル名を大文字、拡張子を小文字にして組み立てる
+    # 組立
     return [System.IO.Path]::Combine($dname, $fname + $ename)
 }
 
@@ -166,7 +138,7 @@ function RestrictDate([string] $FilePath, [datetime] $FileDate, [bool] $isDir) {
         $ename = ""
     }
     ## YYYY-MM-DD or YYYY.MM.DD
-    $fname = [regex]::replace($fname, "(?<![0-9]+)(19|20)(\d\d)([.-])([1-9]|0[1-9]|1[0-2])(\3)([1-9]|0[1-9]|[12][0-9]|3[01])(?![0-9]+)",{
+    $fname = [regex]::Replace($fname, "(?<![0-9]+)(19|20)(\d\d)([.-])([1-9]|0[1-9]|1[0-2])(\3)([1-9]|0[1-9]|[12][0-9]|3[01])(?![0-9]+)",{
         param($match)
         $name = $match.Value.ToUpper()
         $name = $name.Replace(".","-")
@@ -174,14 +146,14 @@ function RestrictDate([string] $FilePath, [datetime] $FileDate, [bool] $isDir) {
         if($date){ return $date.ToString("yyyyMMdd") }else{ return $match.Value }
     }, [system.text.regularexpressions.regexoptions]::IgnoreCase)
     ## YYYY年MM月DD日
-    $fname = [regex]::replace($fname, "(?<![0-9]+)(19|20)(\d\d)年([1-9]|0[1-9]|1[0-2])月([1-9]|0[1-9]|[12][0-9]|3[01])日",{
+    $fname = [regex]::Replace($fname, "(?<![0-9]+)(19|20)(\d\d)年([1-9]|0[1-9]|1[0-2])月([1-9]|0[1-9]|[12][0-9]|3[01])日",{
         param($match)
         $name = $match.Value.ToUpper()
         $date = [DateTime]::ParseExact($name, "yyyy年M月d日", $null) 
         if($date){ return $date.ToString("yyyyMMdd") }else{ return $match.Value }
     }, [system.text.regularexpressions.regexoptions]::IgnoreCase)
     ## 和暦YY-MM-DD or 和暦YY.MM.DD 
-    $fname = [regex]::replace($fname, "(令和|R|平成|H|昭和|S|明治|M|大正|T)(\d{1,2})([.-])([1-9]|0[1-9]|1[0-2])(\3)([1-9]|0[1-9]|[12][0-9]|3[01])(?![0-9]+)",{
+    $fname = [regex]::Replace($fname, "(令和|R|平成|H|昭和|S|明治|M|大正|T)(\d{1,2})([.-])([1-9]|0[1-9]|1[0-2])(\3)([1-9]|0[1-9]|[12][0-9]|3[01])(?![0-9]+)",{
         param($match)
         $name = $match.Value.ToUpper()
         $name = $name.Replace(".","-")
@@ -196,7 +168,7 @@ function RestrictDate([string] $FilePath, [datetime] $FileDate, [bool] $isDir) {
         if($date){ return $date.ToString("yyyyMMdd") }else{ return $match.Value }
     }, [system.text.regularexpressions.regexoptions]::IgnoreCase)
     ## 和暦YY年MM月DD日
-    $fname = [regex]::replace($fname, "(令和|R|平成|H|昭和|S|明治|M|大正|T)(\d{1,2}|元)年([1-9]|0[1-9]|1[0-2])月([1-9]|0[1-9]|[12][0-9]|3[01])日",{
+    $fname = [regex]::Replace($fname, "(令和|R|平成|H|昭和|S|明治|M|大正|T)(\d{1,2}|元)年([1-9]|0[1-9]|1[0-2])月([1-9]|0[1-9]|[12][0-9]|3[01])日",{
         param($match)
         $name = $match.Value.ToUpper()
         $name = $name.Replace("R","令和")
@@ -210,7 +182,7 @@ function RestrictDate([string] $FilePath, [datetime] $FileDate, [bool] $isDir) {
         if($date){ return $date.ToString("yyyyMMdd") }else{ return $match.Value }
     }, [system.text.regularexpressions.regexoptions]::IgnoreCase)
     ## YY-MM-DD or YY.MM.DD     ※表記とタイムスタンプの関係が妥当ならリネーム
-    $fname = [regex]::replace($fname, "(?<![-.0-9a-z]+)(\d\d)([.-])(0[1-9]|1[0-2])(\2)(0[1-9]|[12][0-9]|3[01])(?![0-9]+)",{
+    $fname = [regex]::Replace($fname, "(?<![-.0-9a-z]+)(\d\d)([.-])(0[1-9]|1[0-2])(\2)(0[1-9]|[12][0-9]|3[01])(?![0-9]+)",{
         param($match)
         $name = $match.Value.ToUpper()
         $name = $name.Replace(".","-")
@@ -229,7 +201,7 @@ function RestrictDate([string] $FilePath, [datetime] $FileDate, [bool] $isDir) {
         }
     }, [system.text.regularexpressions.regexoptions]::IgnoreCase)
     ## YY年MM月DD日             ※表記とタイムスタンプの関係が妥当ならリネーム
-    $fname = [regex]::replace($fname, "(?<![-.0-9a-z]+)(\d\d)年([1-9]|0[1-9]|1[0-2])月([1-9]|0[1-9]|[12][0-9]|3[01])日",{
+    $fname = [regex]::Replace($fname, "(?<![-.0-9a-z]+)(\d\d)年([1-9]|0[1-9]|1[0-2])月([1-9]|0[1-9]|[12][0-9]|3[01])日",{
         param($match)
         $name = $match.Value.ToUpper()
         $name = $name.Replace(".","-")
@@ -247,12 +219,12 @@ function RestrictDate([string] $FilePath, [datetime] $FileDate, [bool] $isDir) {
             return $match.Value
         }
     }, [system.text.regularexpressions.regexoptions]::IgnoreCase)
-    # ファイル名を大文字、拡張子を小文字にして組み立てる
+    # 組立
     return [System.IO.Path]::Combine($dname, $fname + $ename)
 }
 
 # その他
-function RestrictExt([string] $FilePath, [datetime] $FileDate, [bool] $isDir) {
+function RestrictExt([string] $FilePath, [bool] $isDir) {
     # パスを分解
     if ($isDir -eq $false) {
         $dname = [System.IO.Path]::GetDirectoryName($FilePath)
@@ -265,31 +237,17 @@ function RestrictExt([string] $FilePath, [datetime] $FileDate, [bool] $isDir) {
     }
 
     # ファイル名：複数の空白を一つの空白に
-    $fname = [regex]::replace($fname, "^\s*", "")   # 先頭空白削除
-    $fname = [regex]::replace($fname, "\s+$", "")   # 末尾空白削除
-    $fname = [regex]::replace($fname, "\s+", " ")   # 複数空白
-    # $fname = RemoveAllBrackets($fname)            # 括弧削除
+    $fname = [regex]::Replace($fname, "\s+", " ")   # 複数空白
+    $fname = [regex]::Replace($fname, "^\s*", "")   # 先頭空白削除
+    $fname = [regex]::Replace($fname, "\s+$", "")   # 末尾空白削除
 
     # 拡張子：小文字
     $ename = [Microsoft.VisualBasic.Strings]::StrConv($ename, [Microsoft.VisualBasic.VbStrConv]::Narrow)
     $ename = [Microsoft.VisualBasic.Strings]::StrConv($ename, [Microsoft.VisualBasic.VbStrConv]::Lowercase)
     $ename = $ename.Trim()
 
-    # ファイル名を大文字、拡張子を小文字にして組み立てる
+    # 組立
     return [System.IO.Path]::Combine($dname, $fname + $ename)
-}
-
-# 括弧削除
-Function RemoveAllBrackets([string] $sText){
-    $buff = $fname
-    do {
-        $buff = [regex]::replace($buff, "\([^\(]*?\)","")
-    } until (
-        $buff -eq [regex]::replace($buff, "\([^\(]*?\)","")
-    )
-    $buff = [regex]::replace($buff, ".*\)", "")
-    $buff = [regex]::replace($buff, "\(.*", "")
-    return $buff
 }
 
 ###############################################################################
