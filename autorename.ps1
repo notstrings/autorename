@@ -23,6 +23,14 @@ function VBRep([string] $text,[string] $from,[string] $to) {
     return $ret
 }
 
+# 翻訳
+# GoogleTranslate -text "Hello, world!" -srcLang en -dstLang ja
+function GoogleTranslate([string] $text, [string]$srcLang, [string]$dstLang) {
+    $Uri = “https://translate.googleapis.com/translate_a/single?client=gtx&sl=$($srcLang)&tl=$($dstLang)&dt=t&q=$Text”
+    $Response = Invoke-RestMethod -Uri $Uri -Method Get
+    return $Response[0].SyncRoot | ForEach-Object { $_[0] }
+}
+
 # 括弧削除
 Function RemoveAllBrackets([string] $sText){
     $buff = $fname
@@ -36,6 +44,7 @@ Function RemoveAllBrackets([string] $sText){
     return $buff
 }
 
+# ゴミ箱へ移動
 function MoveTrush([string] $FilePath) {
     $dpath = Split-Path $FilePath -Parent
     $fpath = Split-Path $FilePath -Leaf
@@ -43,6 +52,7 @@ function MoveTrush([string] $FilePath) {
     $shell.Namespace($dpath).ParseName($fpath).InvokeVerb("delete")
 }
 
+# ファイル移動
 function MoveItemWithUniqName([string] $SrcName, [string] $DstName, [bool] $isDir) {
     $sUniq = $DstName
     $lUniq = 1
@@ -125,7 +135,6 @@ function RestrictText([string] $FilePath, [bool] $isDir) {
 }
 
 # ファイル・フォルダ名の正規化(日付をYYYYMMDDに)
-# ・なるべく確実性の高いものだけを処理する
 function RestrictDate([string] $FilePath, [datetime] $FileDate, [bool] $isDir) {
     # パスを分解
     if ($isDir -eq $false) {
@@ -223,7 +232,7 @@ function RestrictDate([string] $FilePath, [datetime] $FileDate, [bool] $isDir) {
     return [System.IO.Path]::Combine($dname, $fname + $ename)
 }
 
-# その他
+# ファイル・フォルダ名の正規化(その他)
 function RestrictExt([string] $FilePath, [bool] $isDir) {
     # パスを分解
     if ($isDir -eq $false) {
