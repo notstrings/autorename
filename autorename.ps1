@@ -3,25 +3,9 @@ Add-Type -AssemblyName "Microsoft.VisualBasic"
 
 # 各種変数初期化
 $ErrorActionPreference = "Stop"
-$ScriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path
 
 ###############################################################################
 ## Common
-
-function InfBox([string] $ttl, [string] $msg){
-    return ($Host.UI.PromptForChoice($ttl, $msg, @("OK"), 0))
-}
-
-function AskBox([string] $ttl, [string] $msg, [string[]] $opt){
-    return ($Host.UI.PromptForChoice($ttl, $msg, $opt, -1))
-}
-
-function VBRep([string] $text,[string] $from,[string] $to) {
-    # PowerShellでは意外に面倒な大文字小文字を区別しない文字比較
-    $ret = [Microsoft.VisualBasic.Strings]::Replace($text, $from, $to, 1, -1, [Microsoft.VisualBasic.CompareMethod]::Text)
-    if($null -eq $ret){ $ret = "" }
-    return $ret
-}
 
 # 翻訳
 # GoogleTranslate -text "Hello, world!" -srcLang en -dstLang ja
