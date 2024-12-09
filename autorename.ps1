@@ -231,7 +231,7 @@ function RestrictExt([string] $FilePath, [bool] $isDir) {
 
     # ファイル名：複数の空白を一つの空白に
     $fname = [regex]::Replace($fname, "\s+", " ")   # 複数空白
-    $fname = [regex]::Replace($fname, "^\s*", "")   # 先頭空白削除
+    $fname = [regex]::Replace($fname, "^\s+", "")   # 先頭空白削除
     $fname = [regex]::Replace($fname, "\s+$", "")   # 末尾空白削除
 
     # 拡張子：小文字
