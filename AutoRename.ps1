@@ -62,16 +62,14 @@ function CleanupFName([System.IO.FileInfo] $Target) {
     CleanupNodeName $Target.FullName $Target.LastWriteTime $false
 }
 
-function CleanupDName([System.IO.DirectoryInfo] $Target, [bool] $isTop = $true) {
+function CleanupDName([System.IO.DirectoryInfo] $Target) {
     ForEach ($elm in @(Get-ChildItem -LiteralPath $Target.FullName -Directory)) {
-        CleanupDName $elm $false
+        CleanupDName $elm
     }
     ForEach ($elm in @(Get-ChildItem -LiteralPath $Target.FullName -File)) {
         CleanupFName $elm
     }
-    if ($isTop -eq $false) {
-        CleanupNodeName $Target.FullName $Target.CreationTime $true
-    }
+    CleanupNodeName $Target.FullName $Target.CreationTime $true
 }
 
 function CleanupNodeName([string] $TargetName, [datetime] $TargetDate, [bool] $isDir) {
@@ -84,7 +82,7 @@ function CleanupNodeName([string] $TargetName, [datetime] $TargetDate, [bool] $i
         $dstname = RestrictDate $dstname $TargetDate $isDir
         $dstname = RestrictMisc $dstname $isDir
         $dstname = RestrictExt $dstname $isDir
-        if ($srcname -ine $dstname) {
+        if ($srcname -ne $dstname) {
             $null = Write-Host "---"
             $null = Write-Host "src : $srcname"
             $null = Write-Host "dst : $dstname"
@@ -116,7 +114,6 @@ function RestrictText([string] $FilePath, [bool] $isDir) {
         param($match)
         return [Microsoft.VisualBasic.Strings]::StrConv($match, [Microsoft.VisualBasic.VbStrConv]::Wide)
     }, [system.text.regularexpressions.regexoptions]::IgnoreCase)
-    $fname = [Microsoft.VisualBasic.Strings]::StrConv($fname, [Microsoft.VisualBasic.VbStrConv]::Uppercase)
     # 組立
     return [System.IO.Path]::Combine($dname, $fname + $ename)
 }
@@ -226,7 +223,9 @@ function RestrictMisc([string] $FilePath, [bool] $isDir) {
         $fname = [System.IO.Path]::GetFileNameWithoutExtension($FilePath)
         $ename = [System.IO.Path]::GetExtension($FilePath)
     }
-
+    # オプション
+    # $fname = GoogleTranslate $fname "ja" "en"
+    # $fname = RemoveAllBrackets $fname
     # 組立
     return [System.IO.Path]::Combine($dname, $fname + $ename)
 }
@@ -243,17 +242,10 @@ function RestrictExt([string] $FilePath, [bool] $isDir) {
         $fname = [System.IO.Path]::GetFileName($FilePath)
         $ename = ""
     }
-
     # ファイル名：複数の空白を一つの空白に
     $fname = [regex]::Replace($fname, "\s+", " ")   # 複数空白
     $fname = [regex]::Replace($fname, "^\s+", "")   # 先頭空白削除
     $fname = [regex]::Replace($fname, "\s+$", "")   # 末尾空白削除
-
-    # 拡張子：小文字
-    $ename = [Microsoft.VisualBasic.Strings]::StrConv($ename, [Microsoft.VisualBasic.VbStrConv]::Narrow)
-    $ename = [Microsoft.VisualBasic.Strings]::StrConv($ename, [Microsoft.VisualBasic.VbStrConv]::Lowercase)
-    $ename = $ename.Trim()
-
     # 組立
     return [System.IO.Path]::Combine($dname, $fname + $ename)
 }
