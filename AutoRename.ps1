@@ -84,7 +84,7 @@ function CleanupNodeName([string] $TargetName, [datetime] $TargetDate, [bool] $i
         $dstname = RestrictDate $dstname $TargetDate $isDir
         $dstname = RestrictMisc $dstname $isDir
         $dstname = RestrictExt $dstname $isDir
-        if ($srcname -cne $dstname) {
+        if ($srcname -ine $dstname) {
             $null = Write-Host "---"
             $null = Write-Host "src : $srcname"
             $null = Write-Host "dst : $dstname"
