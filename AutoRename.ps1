@@ -70,7 +70,7 @@ function CleanupDName([System.IO.DirectoryInfo] $Target, [bool] $isTop = $true) 
         CleanupFName $elm
     }
     if ($isTop -eq $false) {
-    CleanupNodeName $Target.FullName $Target.CreationTime $true
+        CleanupNodeName $Target.FullName $Target.CreationTime $true
     }
 }
 
