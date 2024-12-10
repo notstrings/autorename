@@ -62,14 +62,16 @@ function CleanupFName([System.IO.FileInfo] $Target) {
     CleanupNodeName $Target.FullName $Target.LastWriteTime $false
 }
 
-function CleanupDName([System.IO.DirectoryInfo] $Target) {
+function CleanupDName([System.IO.DirectoryInfo] $Target, [bool] $isTop = $true) {
     ForEach ($elm in @(Get-ChildItem -LiteralPath $Target.FullName -Directory)) {
-        CleanupDName $elm
+        CleanupDName $elm $false
     }
     ForEach ($elm in @(Get-ChildItem -LiteralPath $Target.FullName -File)) {
         CleanupFName $elm
     }
+    if ($isTop -eq $false) {
     CleanupNodeName $Target.FullName $Target.CreationTime $true
+    }
 }
 
 function CleanupNodeName([string] $TargetName, [datetime] $TargetDate, [bool] $isDir) {
@@ -80,6 +82,7 @@ function CleanupNodeName([string] $TargetName, [datetime] $TargetDate, [bool] $i
         $dstname = $TargetName
         $dstname = RestrictText $dstname $isDir
         $dstname = RestrictDate $dstname $TargetDate $isDir
+        $dstname = RestrictMisc $dstname $isDir
         $dstname = RestrictExt $dstname $isDir
         if ($srcname -cne $dstname) {
             $null = Write-Host "---"
@@ -212,6 +215,23 @@ function RestrictDate([string] $FilePath, [datetime] $FileDate, [bool] $isDir) {
             return $match.Value
         }
     }, [system.text.regularexpressions.regexoptions]::IgnoreCase)
+    # 組立
+    return [System.IO.Path]::Combine($dname, $fname + $ename)
+}
+
+# ファイル・フォルダ名の正規化(雑多)
+function RestrictMisc([string] $FilePath, [bool] $isDir) {
+    # パスを分解
+    if($isDir -eq $true){
+        $dname = [System.IO.Path]::GetDirectoryName($FilePath)
+        $fname = [System.IO.Path]::GetFileName($FilePath)
+        $ename = ""
+    }else{
+        $dname = [System.IO.Path]::GetDirectoryName($FilePath)
+        $fname = [System.IO.Path]::GetFileNameWithoutExtension($FilePath)
+        $ename = [System.IO.Path]::GetExtension($FilePath)
+    }
+
     # 組立
     return [System.IO.Path]::Combine($dname, $fname + $ename)
 }
