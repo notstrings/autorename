@@ -133,6 +133,9 @@ function RestrictDate([string] $FilePath, [datetime] $FileDate, [bool] $isDir) {
         $fname = [System.IO.Path]::GetFileName($FilePath)
         $ename = ""
     }
+    # 日本のカレンダー情報を取得
+    $info = New-Object cultureinfo("ja-jp", $true)
+    $info.DateTimeFormat.Calendar = New-Object System.Globalization.JapaneseCalendar
     ## YYYY-MM-DD or YYYY.MM.DD
     $fname = [regex]::Replace($fname, "(?<![0-9]+)(19|20)(\d\d)([.-])([1-9]|0[1-9]|1[0-2])(\3)([1-9]|0[1-9]|[12][0-9]|3[01])(?![0-9]+)",{
         param($match)
@@ -149,7 +152,7 @@ function RestrictDate([string] $FilePath, [datetime] $FileDate, [bool] $isDir) {
         if($date){ return $date.ToString("yyyyMMdd") }else{ return $match.Value }
     }, [system.text.regularexpressions.regexoptions]::IgnoreCase)
     ## 和暦YY-MM-DD or 和暦YY.MM.DD 
-    $fname = [regex]::Replace($fname, "(令和|R|平成|H|昭和|S|明治|M|大正|T)(\d{1,2})([.-])([1-9]|0[1-9]|1[0-2])(\3)([1-9]|0[1-9]|[12][0-9]|3[01])(?![0-9]+)",{
+    $fname = [regex]::Replace($fname, "(令和|\bR|平成|\bH|昭和|\bS|明治|\bM|大正|\bT)(\d{1,2})([.-])([1-9]|0[1-9]|1[0-2])(\3)([1-9]|0[1-9]|[12][0-9]|3[01])(?![0-9]+)",{
         param($match)
         $name = $match.Value.ToUpper()
         $name = $name.Replace(".","-")
@@ -158,13 +161,11 @@ function RestrictDate([string] $FilePath, [datetime] $FileDate, [bool] $isDir) {
         $name = $name.Replace("S","昭和")
         $name = $name.Replace("M","明治")
         $name = $name.Replace("T","大正")
-        $info = New-Object cultureinfo("ja-jp", $true)
-        $info.DateTimeFormat.Calendar = New-Object System.Globalization.JapaneseCalendar
         $date = [DateTime]::ParseExact($name, "gy-M-d", $info) 
         if($date){ return $date.ToString("yyyyMMdd") }else{ return $match.Value }
     }, [system.text.regularexpressions.regexoptions]::IgnoreCase)
     ## 和暦YY年MM月DD日
-    $fname = [regex]::Replace($fname, "(令和|R|平成|H|昭和|S|明治|M|大正|T)(\d{1,2}|元)年([1-9]|0[1-9]|1[0-2])月([1-9]|0[1-9]|[12][0-9]|3[01])日",{
+    $fname = [regex]::Replace($fname, "(令和|\bR|平成|\bH|昭和|\bS|明治|\bM|大正|\bT)(\d{1,2}|元)年([1-9]|0[1-9]|1[0-2])月([1-9]|0[1-9]|[12][0-9]|3[01])日",{
         param($match)
         $name = $match.Value.ToUpper()
         $name = $name.Replace("R","令和")
@@ -172,18 +173,14 @@ function RestrictDate([string] $FilePath, [datetime] $FileDate, [bool] $isDir) {
         $name = $name.Replace("S","昭和")
         $name = $name.Replace("M","明治")
         $name = $name.Replace("T","大正")
-        $info = New-Object cultureinfo("ja-jp", $true)
-        $info.DateTimeFormat.Calendar = New-Object System.Globalization.JapaneseCalendar
         $date = [DateTime]::ParseExact($name, "gy年M月d日", $info) 
         if($date){ return $date.ToString("yyyyMMdd") }else{ return $match.Value }
     }, [system.text.regularexpressions.regexoptions]::IgnoreCase)
     ## YY-MM-DD or YY.MM.DD     ※表記とタイムスタンプの関係が妥当ならリネーム
-    $fname = [regex]::Replace($fname, "(?<![-.0-9a-z]+)(\d\d)([.-])(0[1-9]|1[0-2])(\2)(0[1-9]|[12][0-9]|3[01])(?![0-9]+)",{
+    $fname = [regex]::Replace($fname, "\b(\d\d)([.-])(0[1-9]|1[0-2])(\2)(0[1-9]|[12][0-9]|3[01])(?![0-9]+)",{
         param($match)
         $name = $match.Value.ToUpper()
         $name = $name.Replace(".","-")
-        $info = New-Object cultureinfo("ja-jp", $true)
-        $info.DateTimeFormat.Calendar = New-Object System.Globalization.JapaneseCalendar
         $nameyy = ($FileDate.Year).ToString().Substring(0,2) + $name
         $dateyy = [DateTime]::ParseExact($nameyy, "yyyy-M-d", $null) 
         $namegg = $FileDate.ToString("ggg", $info) + $name
@@ -197,12 +194,10 @@ function RestrictDate([string] $FilePath, [datetime] $FileDate, [bool] $isDir) {
         }
     }, [system.text.regularexpressions.regexoptions]::IgnoreCase)
     ## YY年MM月DD日             ※表記とタイムスタンプの関係が妥当ならリネーム
-    $fname = [regex]::Replace($fname, "(?<![-.0-9a-z]+)(\d\d)年([1-9]|0[1-9]|1[0-2])月([1-9]|0[1-9]|[12][0-9]|3[01])日",{
+    $fname = [regex]::Replace($fname, "\b(\d\d)年([1-9]|0[1-9]|1[0-2])月([1-9]|0[1-9]|[12][0-9]|3[01])日",{
         param($match)
         $name = $match.Value.ToUpper()
         $name = $name.Replace(".","-")
-        $info = New-Object cultureinfo("ja-jp", $true)
-        $info.DateTimeFormat.Calendar = New-Object System.Globalization.JapaneseCalendar
         $nameyy = ($FileDate.Year).ToString().Substring(0,2) + $name
         $dateyy = [DateTime]::ParseExact($nameyy, "yyyy年M月d日", $null) 
         $namegg = $FileDate.ToString("ggg", $info) + $name
@@ -265,6 +260,8 @@ function RestrictExt([string] $FilePath, [bool] $isDir) {
 
 ###############################################################################
 ## Main
+
+# CleanupDName ([System.IO.Path]::Combine($PSScriptRoot, "test"))
 
 try {
     if ($args.Length -eq 0) {
